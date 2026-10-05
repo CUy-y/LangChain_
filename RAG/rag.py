@@ -2,11 +2,11 @@ from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableWithMessageHistory, RunnableLambda
 from file_history_store import get_history
-from vector_stores import VectorStoreService
+from vector_store import VectorStoreService
 from langchain_community.embeddings import DashScopeEmbeddings
 import config_data as config
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_community.chat_models.tongyi import ChatTongyi
+from langchain_openai import ChatOpenAI
 
 
 def print_prompt(prompt):
@@ -19,9 +19,10 @@ def print_prompt(prompt):
 
 class RagService(object):
     def __init__(self):
+        api_key = config.get_dashscope_api_key()
 
         self.vector_service = VectorStoreService(
-            embedding=DashScopeEmbeddings(model=config.embedding_model_name)
+            embedding=DashScopeEmbeddings(model=config.embedding_model_name, dashscope_api_key=api_key)
         )
 
         self.prompt_template = ChatPromptTemplate.from_messages(
@@ -34,7 +35,11 @@ class RagService(object):
             ]
         )
 
-        self.chat_model = ChatTongyi(model=config.chat_model_name)
+        self.chat_model = ChatOpenAI(
+            model=config.chat_model_name,
+            api_key=api_key,
+            base_url=config.dashscope_base_url,
+        )
 
         self.chain = self.__get_chain()
 

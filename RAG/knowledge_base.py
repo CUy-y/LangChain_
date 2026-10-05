@@ -46,12 +46,13 @@ def get_string_md5(input_str:str ,encoding='utf-8'):
 
 class KnowledgeBaseService(object):
     def __init__(self):
+        api_key = config.get_dashscope_api_key()
         # 如果文件夹不存在则创建，如果存在则跳过
         os.makedirs(config.persist_directory,exist_ok=True)
 
         self.chroma=Chroma(          # 向量存储的示例 Chroma向量库对象
             collection_name=config.collection_name,      #数据库表名
-            embedding_function=DashScopeEmbeddings(model="text-embedding-v4"),
+            embedding_function=DashScopeEmbeddings(model=config.embedding_model_name, dashscope_api_key=api_key),
             persist_directory=config.persist_directory,   #数据库本地存储文件夹
         )      # 向量存储的实例，Chroma向量库对象
         self.spliter=RecursiveCharacterTextSplitter(  # 文本分割器的对象
