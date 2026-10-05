@@ -3,7 +3,7 @@
 """
 
 import os
-import congfig_data as config
+import config_data as config
 import hashlib
 from langchain_chroma import Chroma
 from langchain_community.embeddings import DashScopeEmbeddings

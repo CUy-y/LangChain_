@@ -1,8 +1,13 @@
 '''
 基于streamlit框架完成WEB网页上传服务
+
+Streamlit ： 当WEB页面元素变化，则代码重新执行一遍，无法维护状态
 '''
 
 import streamlit as st
+import time
+
+from knowledge_base import KnowledgeBaseService
 
 # 添加网页标题
 st.title("知识库更新服务")
@@ -14,6 +19,9 @@ uploader_file = st.file_uploader(
     accept_multiple_files = False
 )
 
+if "service" not in st.session_state:          # 会话状态字典，session_state本身也是字典
+    st.session_state["service"]=KnowledgeBaseService()
+
 if uploader_file is not None:
     file_name = uploader_file.name
     file_type = uploader_file.type
@@ -24,4 +32,7 @@ if uploader_file is not None:
 
     # get_value 获取内容 -> bytes -> decode('utf-8)
     text = uploader_file.getvalue().decode('utf-8')
-    st.write(text)
+    with st.spinner("载入知识库中。。。"):     # 在 spinner内的代码执行过程中，会有一个转圈动画，优化用户体验
+        time.sleep(1)
+        result= st.session_state["service"].upload_by_str(text,file_name)
+        st.write(result)
