@@ -10,26 +10,6 @@ from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from datetime import datetime
 
-def check_md5(md5_str:str):
-    """检查传入的MD5字符串是否已经被处理过了
-            return False未处理，True已处理
-    """
-    if not os.path.exists(config.md5_path):
-        # if 进入表示文件不存在，表示没有处理过这个MD5
-        open(config.md5_path,'w',encoding='utf-8').close()
-        return False
-    else:
-        for line in open(config.md5_path,'r',encoding='utf-8').readlines():
-            line=line.strip()   # 处理字符串前后的空格和回车
-            if line == md5_str:
-                return True     # 已处理过
-        return False
-
-def save_md5(md5_str:str):
-    """将传入的md5字符串，记录到文件内保存"""
-    with open(config.md5_path,'a',encoding="utf-8")as f:
-        f.write(md5_str + '\n')
-
 def get_string_md5(input_str:str ,encoding='utf-8'):
     """将出传入的字符串转换为md5字符串"""
 
@@ -45,16 +25,19 @@ def get_string_md5(input_str:str ,encoding='utf-8'):
 
 
 class KnowledgeBaseService(object):
-    def __init__(self):
-        api_key = config.get_dashscope_api_key()
+    def __init__(self, vector_store=None):
         # 如果文件夹不存在则创建，如果存在则跳过
         os.makedirs(config.persist_directory,exist_ok=True)
 
-        self.chroma=Chroma(          # 向量存储的示例 Chroma向量库对象
-            collection_name=config.collection_name,      #数据库表名
-            embedding_function=DashScopeEmbeddings(model=config.embedding_model_name, dashscope_api_key=api_key),
-            persist_directory=config.persist_directory,   #数据库本地存储文件夹
-        )      # 向量存储的实例，Chroma向量库对象
+        self.chroma = vector_store if vector_store is not None else Chroma(
+            collection_name=config.collection_name,
+            embedding_function=DashScopeEmbeddings(
+                model=config.embedding_model_name,
+                dashscope_api_key=config.get_dashscope_api_key(),
+                max_retries=2,
+            ),
+            persist_directory=config.persist_directory,
+        )
         self.spliter=RecursiveCharacterTextSplitter(  # 文本分割器的对象
             chunk_size=config.chunk_size,             # 分割后的文本段最大长度
             chunk_overlap=config.chunk_overlap,       # 连续文本段之间的字符重叠数量
@@ -64,9 +47,11 @@ class KnowledgeBaseService(object):
 
     def upload_by_str(self,data:str,filename):
         """将传入的字符串，进行向量化，存入向量数据库中"""
-        # 先得到出传入的字符串的md5值
+        if not data.strip():
+            return "[跳过] 文件内容为空"
+
         md5_hex=get_string_md5(data)
-        if check_md5(md5_hex):
+        if self.chroma.get(where={"content_md5": md5_hex}, limit=1, include=[])["ids"]:
             return "[跳过] 内容已存在知识库"
         if len(data) > config.max_spliter_char_number:
             knowledge_chunks:list[str]=self.spliter.split_text(data) # 类型统一，均用列表套字符串
@@ -75,6 +60,7 @@ class KnowledgeBaseService(object):
 
         metadata={
             "source":filename,
+            "content_md5":md5_hex,
             "create_time":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "operator":"客户",
         }
@@ -82,26 +68,12 @@ class KnowledgeBaseService(object):
         self.chroma.add_texts(        # 内容加载到向量库中
             # iterable-> list \tuple
             knowledge_chunks,
-            metadata=[metadata for _ in knowledge_chunks],
+            metadatas=[metadata for _ in knowledge_chunks],
 
         )
-        save_md5(md5_hex)
         return "[Success]内容已经成功载入向量库"
 
 if __name__ =='__main__':
-    # r1 = get_string_md5("周杰伦")
-    # r2 = get_string_md5("周杰伦")
-    # r3 = get_string_md5("周杰伦4")
-    # # 为什么用md5  哈希算法（散列函数）能把任意长度数据，算出一串32位16进制的字符串
-    # #优点： 快 简单 能做简单文件校验   ，缺点：  不能做安全加密   易于被破解，过时
-    # #SHA-256  SHA-512
-    #
-    # print(r1)
-    # print(r2)
-    # print(r3)
-
-    #save_md5("7a8941058aaf4df5147042ce104568da")
-    #print(check_md5("7a8941058aaf4df5147042ce104568da"))
     service= KnowledgeBaseService()
     r=service.upload_by_str("流星","testfile")
     print(r)

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 # 始终读取 RAG/.env，不受启动目录影响；文件中的值覆盖旧终端会话的配置。
 load_dotenv(Path(__file__).with_name(".env"), override=True)
+base_directory = Path(__file__).resolve().parent
 
 
 def get_dashscope_api_key() -> str:
@@ -16,11 +17,10 @@ def get_dashscope_api_key() -> str:
     return api_key
 
 
-md5_path = "./md5.text"
-
 # Chroma
 collection_name="rag"
-persist_directory="./chroma_db"
+persist_directory = str(base_directory / "chroma_db")
+chat_history_directory = str(base_directory / "chat_history")
 
 # spliter
 chunk_size= 1000
