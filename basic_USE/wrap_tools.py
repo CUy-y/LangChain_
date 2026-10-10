@@ -59,7 +59,7 @@ tool_agent = create_agent(
 )
 
 response = tool_agent.invoke(
-    {"messages": [{"role": "admin", "user": "请计算 88888 + 55555 = "}]},
+    {"messages": [{"role": "user", "content": "请计算 88888 + 55555 = "}]},
     context = Context(authority = "admin"), 
     version = "v2"
 ).value
